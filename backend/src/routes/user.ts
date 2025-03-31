@@ -2,6 +2,10 @@ import { Hono } from "hono";
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 import { sign } from "hono/jwt";
+import { signupInput, signinInput } from "@irakesh_bhagat/bloggy-common"; 
+
+// console.log(Common); // Check what gets imported
+
 
 export const userRouter = new Hono<{
   Bindings: {
@@ -27,13 +31,17 @@ userRouter.post("/signin", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { email, password } = await c.req.json();
+  const body = await c.req.json();
+  const {success} = signinInput.safeParse(body)
+  if(!success){
+    return c.json({message: "wrong inputs"}, 411)
+  }
 
-  const hashedPassword = await hashPassword(password);
+  const hashedPassword = await hashPassword(body.password);
 
   const user = await prisma.user.findUnique({
     where: {
-      email,
+      email: body.email
     },
   });
 
@@ -62,14 +70,18 @@ userRouter.post("/signup", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { name, email, password } = await c.req.json();
+  const body = await c.req.json();
+  const {success} = signupInput.safeParse(body)
+  if(!success){
+    return c.json({message: "wrong inputs"}, 411)
+  }
 
   try {
-    const hashedPassword = await hashPassword(password);
+    const hashedPassword = await hashPassword(body.password);
     const user = await Prisma.user.create({
       data: {
-        name,
-        email,
+        name: body.name,
+        email: body.email,
         password: hashedPassword,
       },
     });
